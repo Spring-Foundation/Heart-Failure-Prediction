@@ -47,6 +47,24 @@ if page == 'Predictive Model':
     if file:
         # data = pd.read_csv(file.name)
         data = pd.read_csv('heart_failure_clinical_records_dataset.csv')
+        dependent_var = st.selectbox('Select the Dependent Variable', data.columns, index=len(data.columns)-1)
+
+        data['creatinine_phosphokinase_normal'] = 0
+        data['ejection_fraction_normal'] = 0
+        data['platelets_normal'] = 0
+        data['serum_creatinine_normal'] = 0
+        data['serum_sodium_normal'] = 0
+
+        data.loc[(10 <= data['creatinine_phosphokinase']) & (
+                    data['creatinine_phosphokinase'] <= 120), 'creatinine_phosphokinase_normal'] = 1
+        data.loc[(50 <= data['ejection_fraction']) & (
+                    data['ejection_fraction'] <= 75), 'ejection_fraction_normal'] = 1
+        data.loc[(150_000 <= data['platelets']) & (data['platelets'] <= 450_000), 'platelets_normal'] = 1
+        data.loc[(0.5 <= data['serum_creatinine']) & (data['serum_creatinine'] <= 1.0) & (
+                    data['sex'] == 0), 'serum_creatinine_normal'] = 1
+        data.loc[(0.7 <= data['serum_creatinine']) & (data['serum_creatinine'] <= 1.2) & (
+                    data['sex'] == 1), 'serum_creatinine_normal'] = 1
+        data.loc[(135 <= data['serum_sodium']) & (data['serum_sodium'] <= 145), 'serum_sodium_normal'] = 1
 
         labelled_data = data.copy()
         labelled_data['anaemia'] = labelled_data['anaemia'].map({0: 'No', 1: 'Yes'})
@@ -56,8 +74,8 @@ if page == 'Predictive Model':
         labelled_data['smoking'] = labelled_data['smoking'].map({0: 'No', 1: 'Yes'})
         labelled_data['DEATH_EVENT'] = labelled_data['DEATH_EVENT'].map({0: 'Alive', 1: 'Dead'})
 
-        dependent_var = st.selectbox('Select the Dependent Variable', data.columns, index=len(data.columns)-1)
-        no_dependent_var = st.checkbox('Dependent Variable not available ?')
+        # no_dependent_var = st.checkbox('Dependent Variable not available ?')
+        no_dependent_var = False
 
         st.header('Independent Variables')
         independent_var = data.drop(dependent_var, axis=1)
@@ -296,9 +314,11 @@ if page == 'Predictive Model':
                 y = data[dependent_var]
                 X_train, X_testi, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=2)
 
-                X_train_classify = X_train[['ejection_fraction', 'serum_creatinine', 'platelets']]
+                qualifying_features = ['serum_creatinine', 'ejection_fraction', 'creatinine_phosphokinase', 'age',
+                                       'serum_sodium', 'serum_creatinine_normal', 'platelets']
+                X_train_classify = X_train[qualifying_features]
                 y_train_classify = y_train
-                X_testi_classify = X_testi[['ejection_fraction', 'serum_creatinine', 'platelets']]
+                X_testi_classify = X_testi[qualifying_features]
                 y_test_classify = y_test
 
                 lof = LocalOutlierFactor()
@@ -365,8 +385,7 @@ if page == 'Predictive Model':
                                                        summary_cols[1]: 'Survival Probability in the middle of Time Period',
                                                        summary_cols[2]: 'Survival Probability at the end of Time Period'}, inplace=True)
 
-                predicted_data = pd.DataFrame(X_testi_classify, columns=['ejection_fraction', 'serum_creatinine',
-                                                                        'platelets'])
+                predicted_data = pd.DataFrame(X_testi_classify, columns=qualifying_features)
                 predicted_data.reset_index(inplace=True)
                 predicted_data.rename(columns={'index': 'Patient ID'}, inplace=True)
                 predicted_data['Risk Probability'] = 0
